@@ -1,5 +1,5 @@
 from datetime import datetime
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, Query
 from fastapi.openapi.docs import get_swagger_ui_html
 from sqlalchemy.orm import Session
 from typing import List
@@ -8,22 +8,23 @@ from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 
-import models
-import schemas
-from database import SessionLocal, engine
-from weather_api import obter_dados_climaticos
+
+from models import models
+from schemas import schemas
+from database.database import SessionLocal, engine
+from service.weather_api import obter_dados_climaticos
 
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
-# Middleware para lidar com CORS (Cross-Origin Resource Sharing)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Permitir solicitações de todos os origens, você pode ajustar conforme necessário
+    allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["*"],  # Permitir todos os métodos (GET, POST, PUT, DELETE, etc.)
-    allow_headers=["*"],  # Permitir todos os cabeçalhos
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
@@ -55,7 +56,11 @@ def criar_dado_climatico(dados_climaticos: schemas.WeatherDataCreate, db: Sessio
 
 
 @app.get("/dados-climaticos/", response_model=List[schemas.WeatherData])
-def listar_dados_climaticos(skip: int = 0, limit: int = 10, db: Session = Depends(get_db)):
+def listar_dados_climaticos(
+    skip: int = Query(default=0, description='Número de registros a pular'),
+    limit: int = Query(default=10, description='Número máximo de registros a retornar'),
+    db: Session = Depends(get_db)
+):
     dados_climaticos = db.query(models.WeatherData).offset(skip).limit(limit).all()
     return dados_climaticos
 

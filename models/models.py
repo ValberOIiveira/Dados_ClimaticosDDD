@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, String, Float
-from database import Base
+from database.database import Base
 
 
 class WeatherData(Base):
