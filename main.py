@@ -1,23 +1,24 @@
 from datetime import datetime
-from fastapi import FastAPI, Depends, HTTPException, Query
-from fastapi.openapi.docs import get_swagger_ui_html
-from sqlalchemy.orm import Session
 from typing import List
-from fastapi.openapi.utils import get_openapi
-from fastapi.responses import JSONResponse
+
+from fastapi import FastAPI, Depends, HTTPException, Query
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.openapi.docs import get_swagger_ui_html
+from fastapi.openapi.utils import get_openapi
+from fastapi.responses import JSONResponse
+from sqlalchemy.orm import Session
 
-
+from auth import controller
+from database.database import SessionLocal, engine
 from models import models
 from schemas import schemas
-from database.database import SessionLocal, engine
+from schemas import user_schema
 from service.weather_api import obter_dados_climaticos
 
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
-
 
 app.add_middleware(
     CORSMiddleware,
@@ -57,9 +58,9 @@ def criar_dado_climatico(dados_climaticos: schemas.WeatherDataCreate, db: Sessio
 
 @app.get("/dados-climaticos/", response_model=List[schemas.WeatherData])
 def listar_dados_climaticos(
-    skip: int = Query(default=0, description='Número de registros a pular'),
-    limit: int = Query(default=10, description='Número máximo de registros a retornar'),
-    db: Session = Depends(get_db)
+        skip: int = Query(default=0, description='Número de registros a pular'),
+        limit: int = Query(default=10, description='Número máximo de registros a retornar'),
+        db: Session = Depends(get_db)
 ):
     dados_climaticos = db.query(models.WeatherData).offset(skip).limit(limit).all()
     return dados_climaticos
@@ -96,7 +97,6 @@ def deletar_dado_climatico(dados_climaticos_id: int, db: Session = Depends(get_d
     return db_dados_climaticos
 
 
-
 @app.post("/buscar-salvar-clima/", response_model=schemas.WeatherData)
 def buscar_e_salvar_dados_climaticos(dados: schemas.CityData, db: Session = Depends(get_db)):
     cidade = dados.cidade
@@ -124,6 +124,14 @@ def buscar_e_salvar_dados_climaticos(dados: schemas.CityData, db: Session = Depe
     db.commit()
     db.refresh(db_dados_climaticos)
     return db_dados_climaticos
+
+
+@app.post("/register/", response_model=user_schema.User)
+def register_user(user: user_schema.UserCreate, db: Session = Depends(get_db)):
+    db_user = controller.get_user_by_email(db, email=user.email)
+    if db_user:
+        raise HTTPException(status_code=400, detail="Email already registered")
+    return controller.create_user(db=db, user=user)
 
 
 # Rota para o Swagger UI
